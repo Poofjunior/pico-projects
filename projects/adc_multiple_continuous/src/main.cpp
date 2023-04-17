@@ -5,6 +5,12 @@
 #include <stdio.h>
 #include <stdint.h>
 
+// According to the datasheet, the way to reconfigure a channel would be to
+// rewrite the starting address upon restart.
+// Otherwise, according to 2.5.1.1,
+// "If READ_ADDR and WRITE_ADDR are not reprogrammed, the DMA will use the
+//  current values as start addresses for the next transfer"
+
 uint8_t adc_vals[5] = {0, 1, 2, 3, 4};
 
 int main()
