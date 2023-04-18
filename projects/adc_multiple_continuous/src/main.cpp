@@ -5,13 +5,23 @@
 #include <stdio.h>
 #include <stdint.h>
 
-// According to the datasheet, the way to reconfigure a channel would be to
-// rewrite the starting address upon restart.
-// Otherwise, according to 2.5.1.1,
-// "If READ_ADDR and WRITE_ADDR are not reprogrammed, the DMA will use the
-//  current values as start addresses for the next transfer"
+// Demo to continuously sample all ADC inputs and write them to a location in
+// memory where they can be read. Datasheet calls this data "scattering."
+
+// Note: According to the datasheet sec 2.5.1, DMA read and write addresses must
+//  be pointers to an address.
+// Note: According to the datasheet sec 2.5.1.1, the way to reinitialize a
+//  channel with an incrementing (read or write) address would be to rewrite the
+//  starting address before (or upon) restart.
+//  Otherwise, "If READ_ADDR and WRITE_ADDR are not reprogrammed, the DMA will
+//  use the current values as start addresses for the next transfer."
 
 uint8_t adc_vals[5] = {0, 1, 2, 3, 4};
+uint8_t* data_ptr[1] = {adc_vals}; // Pointer to an address is required for
+                                   // the reinitialization DMA channel.
+                                   // Recall that DMA channels are basically
+                                   // operating on arrays of data moving their
+                                   // contents between locations.
 
 int main()
 {
@@ -20,16 +30,16 @@ int main()
     while (!stdio_usb_connected()){} // Block until connection to serial port.
     sleep_ms(50);
 
-    // Setup ADC
+    // Setup ADC.
     adc_gpio_init(26);
     adc_gpio_init(27);
     adc_gpio_init(28);
     adc_gpio_init(29);
     adc_init();
-    adc_set_temp_sensor_enabled(true); // enable internal temperature sensor.
+    adc_set_temp_sensor_enabled(true); // Enable internal temperature sensor.
     adc_set_clkdiv(0); // Run at max speed.
-    adc_set_round_robin(0x1f); // enable round-robin sampling of all 5 inputs.
-    adc_select_input(0); // where to start in round-robin mode.
+    adc_set_round_robin(0x1f); // Enable round-robin sampling of all 5 inputs.
+    adc_select_input(0); // Set starting ADC channel for round-robin mode.
     adc_fifo_setup(
         true,    // Write each completed conversion to the sample FIFO
         true,    // Enable DMA data request (DREQ)
@@ -47,7 +57,7 @@ int main()
     dma_channel_config samp_conf = dma_channel_get_default_config(samp_chan);
     dma_channel_config ctrl_conf = dma_channel_get_default_config(ctrl_chan);
 
-    // Setup Sample Channel
+    // Setup Sample Channel.
     channel_config_set_transfer_data_size(&samp_conf, DMA_SIZE_8);
     channel_config_set_read_increment(&samp_conf, false); // read from adc FIFO reg.
     channel_config_set_write_increment(&samp_conf, true);
@@ -59,13 +69,15 @@ int main()
     dma_channel_configure(
         samp_chan,          // Channel to be configured
         &samp_conf,
-        nullptr,            // initial write (dst) address to be loaded by ctrl_chan
-        &adc_hw->fifo,      // initial read (source) address
+        nullptr,            // write (dst) address will be loaded by ctrl_chan.
+        &adc_hw->fifo,      // read (source) address. Does not change.
         count_of(adc_vals), // Number of word transfers.
         false               // Don't Start immediately.
     );
 
     // Setup Reconfiguration Channel
+    // This channel will Write the starting address to the write address
+    // "trigger" register, which will restart the DMA Sample Channel.
     channel_config_set_transfer_data_size(&ctrl_conf, DMA_SIZE_32);
     channel_config_set_read_increment(&ctrl_conf, false); // read a single uint32.
     channel_config_set_write_increment(&ctrl_conf, false);
@@ -73,25 +85,18 @@ int main()
     channel_config_set_dreq(&ctrl_conf, DREQ_FORCE); // Go as fast as possible.
     channel_config_set_enable(&ctrl_conf, true);
     // Apply reconfig channel configuration.
-    uint8_t* data_ptr[1] = {adc_vals};
     dma_channel_configure(
         ctrl_chan,  // Channel to be configured
         &ctrl_conf,
         &dma_hw->ch[samp_chan].al2_write_addr_trig, // dst address.
-        data_ptr,   // read (source) address is the sample chan conf
+        data_ptr,   // Read (src) address is a single array with the starting address.
         1,          // Number of word transfers.
         false       // Don't Start immediately.
     );
-    printf("samp_chan ctrl reg before starting: 0x%08lx\r\n",dma_hw->ch[samp_chan].ctrl_trig);
-    printf("ctrl_chan ctrl reg before starting: 0x%08lx\r\n",dma_hw->ch[ctrl_chan].ctrl_trig);
-    printf("ADC FC reg before starting: 0x%08lx\r\n", adc_hw->fcs);
     dma_channel_start(ctrl_chan);
-    adc_run(true); // Set free-running mode.
-    sleep_ms(50);
-    printf("samp_chan ctrl reg after starting:  0x%08lx\r\n",dma_hw->ch[samp_chan].ctrl_trig);
-    printf("ctrl_chan ctrl reg after starting:  0x%08lx\r\n",dma_hw->ch[ctrl_chan].ctrl_trig);
-    printf("ADC FC reg after starting:  0x%08lx\r\n", adc_hw->fcs);
+    adc_run(true); // Kick off the ADC in free-running mode.
 
+    // Read the latest data.
     while(true)
     {
         printf("ADC vals: %03d | %03d | %03d | %03d | %03d || ADC FCSreg: 0x%08lx\r",

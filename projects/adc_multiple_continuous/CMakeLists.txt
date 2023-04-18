@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 include(../../pico-sdk/pico_sdk_init.cmake)
 
-project(adc_multiple_cntinuous)
+project(adc_multiple_continuous)
 
 # Enable try/catch exception interface.
 #set(PICO_CXX_ENABLE_EXCEPTIONS 1)

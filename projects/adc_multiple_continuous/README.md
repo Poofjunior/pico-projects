@@ -1,4 +1,4 @@
-Example on how to read the systick register.
+Example on how to read all ADC channels continuously and stream them to a location in memory with DMA.
 
 ## Environment Setup
 Ensure that all git submodules have been cloned locally.
@@ -13,6 +13,5 @@ cmake ..
 ````
 After this point, you can invoke the auto-generated Makefile with `make`.
 
-
 ## References
-* [Pi Forum Post: Systick](https://forums.raspberrypi.com/viewtopic.php?t=304201)
+* [Pi Forum Post: DMA](https://forums.raspberrypi.com/viewtopic.php?t=350378)
