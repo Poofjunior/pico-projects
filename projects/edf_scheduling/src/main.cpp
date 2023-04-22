@@ -12,18 +12,16 @@ public:
     /**
      * \brief constructor
      */
-    Task(uint32_t update_interval_us, const char* task_name)
-    :update_interval_us_{update_interval_us},
-     task_name_{task_name},
-     next_update_time_{99}
+    Task(uint32_t update_interval_us, const char* name)
+    :update_interval_us_{update_interval_us}, name_{name}
     {};
 
     /**
      * \brief "less-than" operator for implementing task sorting.
-     * \note naive implementation. Must handle uint32_t rollover.
+     * \note Signed subtraction handles uint32_t rollover.
      */
     friend bool operator<(const Task& lhs, const Task& rhs)
-    {return lhs.next_update_time_ < rhs.next_update_time_;}
+    {return int32_t(rhs.next_update_time_ - lhs.next_update_time_) > 0;}
 
     void start_task(uint32_t start_time)
     {
@@ -35,21 +33,13 @@ public:
     {
         // do stuff here. Set/clear/read some GPIOs, etc.
         // ...
-
         // Record next time to update.
-        //printf("before update. next update time is %d\r\n",next_update_time_);
         next_update_time_ += update_interval_us_;
-        printf("%s updated. Next update @ time: %d\r\n", task_name_, next_update_time_);
+        printf("%s updated. Next update @ t = %d\r\n", name_, next_update_time_);
     }
 
-
     uint32_t next_update_time_;
-    const char* task_name_;
-
-    /**
-     * \brief disable copy constructor.
-     */
-    //Task(const Task&) = delete;
+    const char* name_;
 
 private:
     uint32_t update_interval_us_;
@@ -59,12 +49,14 @@ private:
 // Task object container
 Task tasks[TASK_COUNT]
     {{1000000, "task0"},     // 1 second update interval.
-     {2000000, "task1"},     // 1 second update interval.
-     {3000000, "task2"}};    // 2 second update interval.
+     {2000000, "task1"},     // 2 second update interval.
+     {3000000, "task2"}};    // 3 second update interval.
 
 
 // Priority queue of Task references.
-// Sorting relies on the item type implementing the '<' operator
+//   Use references so that we can instatiate tasks with custom params rather
+//   than pushing or emplacing objects one by one.
+// Note: Sorting relies on the item type implementing the '<' operator
 etl::priority_queue<std::reference_wrapper<Task>,
                     TASK_COUNT,
                     etl::vector<std::reference_wrapper<Task>, TASK_COUNT>,
