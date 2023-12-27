@@ -1,4 +1,4 @@
-Example on how to read the systick register.
+Example on how to use an etl hash table in a simple serial interface.
 
 ## Environment Setup
 Ensure that all git submodules have been cloned locally.
@@ -22,4 +22,3 @@ After this point, you can invoke the auto-generated Makefile with `make`.
 
 
 ## References
-* [Pi Forum Post: Systick](https://forums.raspberrypi.com/viewtopic.php?t=304201)

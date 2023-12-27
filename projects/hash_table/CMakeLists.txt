@@ -2,13 +2,20 @@ cmake_minimum_required(VERSION 3.13)
 
 include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
 
-project(systick_example)
+project(hash_table_example)
 
 # Enable try/catch exception interface.
 #set(PICO_CXX_ENABLE_EXCEPTIONS 1)
 
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
+
+# Specify etl location.
+#set(GIT_DIR_LOOKUP_POLICY ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
+#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../lib/etl
+#                 ${CMAKE_CURRENT_BINARY_DIR}/../../lib/etl)
+set(GIT_DIR_LOOKUP_POLICY ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
+add_subdirectory(../../lib/etl build)
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -21,7 +28,8 @@ include_directories(inc)
 
 
 # Link libraries to the targets that need them.
-target_link_libraries(${PROJECT_NAME} pico_stdlib)
+target_link_libraries(${PROJECT_NAME} PUBLIC pico_stdlib)
+target_link_libraries(${PROJECT_NAME} PRIVATE etl::etl)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(${PROJECT_NAME})
