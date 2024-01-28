@@ -13,11 +13,12 @@ inline uint32_t hardware_alarm_irq_number(uint32_t alarm_num)
 
 void alarm_callback_fn(void)
 {
-    gpio_put(25, 1); // Turn on LED from callback.
-    // Clear the latched interrupt.
-    irq_clear(hardware_alarm_irq_number(alarm_num));
-    uint irq_num = hardware_alarm_irq_number(alarm_num);
-    irq_remove_handler(irq_num, alarm_callback_fn);
+    gpio_put(25, !gpio_get(25)); // Toggle the LED.
+    // Clear the latched hardware interrupt.
+    timer_hw->intr |= (1u << alarm_num);
+    // rearm the alarm.
+    timer_hw->alarm[alarm_num] = (time_us_32() + uint32_t(1000000)); // write time (also arms the alarm)
+
 }
 
 int main()
@@ -35,11 +36,19 @@ int main()
     //hardware_alarm_set_callback(alarm_num, alarm_callback_fn); // returns true if we missed the target.
 
     // Note: does not handle edge case if we schedule alarm to happen *now*
+    // Attach the interrupt to the function.
     uint32_t irq_num = hardware_alarm_irq_number(alarm_num);
     irq_set_exclusive_handler(irq_num, alarm_callback_fn); // attach interrupt to function.
     irq_set_enabled(irq_num, true); // enable alarm0 interrupt
+
+    // Arm the alarm.
     timer_hw->inte |= (1u << alarm_num); // enable specified alarm to trigger interrupt.
     timer_hw->alarm[alarm_num] = (time_us_32() + uint32_t(1000000)); // write time (also arms the alarm)
 
     while(true){}
+
+    // Optional: detach this handler function so we can use the same alarm
+    // on a different handler function.
+    //uint irq_num = hardware_alarm_irq_number(alarm_num);
+    //irq_remove_handler(irq_num, alarm_callback_fn);
 }
